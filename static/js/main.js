@@ -1,3 +1,4 @@
+console.log('JS loaded');
 // Main JavaScript file for ScamDetector
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -12,6 +13,27 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize API functionality
     initializeAPI();
+
+    // Password toggle with eye icon (event delegation)
+    document.addEventListener('click', function(event) {
+        if (event.target.closest('.toggle-password')) {
+            const btn = event.target.closest('.toggle-password');
+            const targetId = btn.getAttribute('data-target');
+            const input = document.getElementById(targetId);
+            const icon = btn.querySelector('i');
+            if (input) {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                } else {
+                    input.type = 'password';
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
+            }
+        }
+    });
 });
 
 // Initialize Bootstrap tooltips
@@ -252,4 +274,12 @@ window.markFeedback = function(detectionId, feedback) {
     .catch(err => {
         alert('Error: ' + err);
     });
-}; 
+};
+
+// Toggle password visibility by id
+function togglePassword(pwdId) {
+    var pwd = document.getElementById(pwdId);
+    if (pwd) {
+        pwd.type = pwd.type === 'password' ? 'text' : 'password';
+    }
+} 

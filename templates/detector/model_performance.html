@@ -7,9 +7,8 @@
     <div class="col-12">
         <h1 class="mb-4">
             <i class="fas fa-chart-line me-3"></i>
-            Model Performance & Classification Report
+            Model Performance
         </h1>
-
         {% if performance.error %}
         <div class="alert alert-danger">
             <h5><i class="fas fa-exclamation-triangle me-2"></i>Error Loading Model Performance</h5>
@@ -123,23 +122,6 @@
             </div>
         </div>
 
-        <!-- Classification Report -->
-        <div class="card mb-4">
-            <div class="card-header bg-dark text-white">
-                <h4 class="mb-0">
-                    <i class="fas fa-table me-2"></i>
-                    Test Set Classification Report
-                </h4>
-            </div>
-            <div class="card-body">
-                {% if performance.classification_report %}
-                <pre class="bg-light p-3 rounded border" style="font-size: 1rem;">{{ performance.classification_report }}</pre>
-                {% else %}
-                <div class="alert alert-warning">Classification report not available.</div>
-                {% endif %}
-            </div>
-        </div>
-
         <!-- Performance Metrics -->
         <div class="card mb-4">
             <div class="card-header bg-info text-white">
@@ -205,7 +187,7 @@
                     <div class="col-md-6">
                         <h5>Training Process</h5>
                         <ol>
-                            <li><strong>Data Loading:</strong> Load spam.csv dataset with latin-1 encoding</li>
+                            <li><strong>Data Loading:</strong> Load spam.csv dataset</li>
                             <li><strong>Text Preprocessing:</strong> Clean and normalize text data</li>
                             <li><strong>Feature Extraction:</strong> Convert text to TF-IDF vectors</li>
                             <li><strong>Model Training:</strong> Train Multinomial Naive Bayes classifier</li>
@@ -217,8 +199,6 @@
                         <h5>Model Features</h5>
                         <ul>
                             <li><strong>Max Features:</strong> 5,000 TF-IDF features</li>
-                            <li><strong>N-gram Range:</strong> Unigrams and bigrams (1-2)</li>
-                            <li><strong>Stop Words:</strong> English stop words removed</li>
                             <li><strong>Text Cleaning:</strong> Special characters and extra spaces removed</li>
                             <li><strong>Case Normalization:</strong> All text converted to lowercase</li>
                         </ul>
@@ -258,12 +238,23 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Accuracy Chart
     const accuracyCtx = document.getElementById('accuracyChart').getContext('2d');
+    const rawAccuracy = parseFloat('{{ performance.accuracy_value|default:0|floatformat:1 }}');
+    let accuracy = isNaN(rawAccuracy) ? 0 : rawAccuracy;
+    let remaining = 100 - accuracy;
+    // Ensure both segments are visible
+    if (accuracy >= 100) {
+        accuracy = 99.9;
+        remaining = 0.1;
+    } else if (accuracy <= 0) {
+        accuracy = 0.1;
+        remaining = 99.9;
+    }
     new Chart(accuracyCtx, {
         type: 'doughnut',
         data: {
             labels: ['Accuracy', 'Remaining'],
             datasets: [{
-                data: [{{ performance.accuracy_value }}, {{ performance.remaining_value }}],
+                data: [accuracy, remaining],
                 backgroundColor: ['#28a745', '#6c757d'],
                 borderWidth: 0
             }]
@@ -289,7 +280,10 @@ document.addEventListener('DOMContentLoaded', function() {
         data: {
             labels: ['Legitimate', 'Spam'],
             datasets: [{
-                data: [{{ performance.legitimate_count }}, {{ performance.spam_count }}],
+                data: [
+                    {{ performance.legitimate_count|default:0|floatformat:0 }},
+                    {{ performance.spam_count|default:0|floatformat:0 }}
+                ],
                 backgroundColor: ['#28a745', '#dc3545'],
                 borderWidth: 2,
                 borderColor: '#fff'

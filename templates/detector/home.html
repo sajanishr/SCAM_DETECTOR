@@ -12,7 +12,7 @@
                 Scam Offers Detection System
             </h1>
             <p class="lead text-muted">
-                Protect yourself from fraudulent offers and scams using our advanced machine learning technology.
+                Protect yourself from fraudulent offers and scams using our machine learning technology.
                 Simply paste any suspicious text and get instant analysis.
             </p>
         </div>
@@ -101,13 +101,13 @@
                         <div class="col-md-6">
                             <div class="d-flex justify-content-between">
                                 <span>Legitimate:</span>
-                                <span class="badge bg-success">{{ result.probability_legitimate|floatformat:1 }}%</span>
+                                <span class="badge bg-success">{{ result.probability_ham|floatformat:1 }}%</span>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="d-flex justify-content-between">
                                 <span>Scam:</span>
-                                <span class="badge bg-danger">{{ result.probability_scam|floatformat:1 }}%</span>
+                                <span class="badge bg-danger">{{ result.probability_spam|floatformat:1 }}%</span>
                             </div>
                         </div>
                     </div>
@@ -172,7 +172,7 @@
                     <i class="fas fa-brain fa-3x text-primary"></i>
                 </div>
                 <h5>AI-Powered Detection</h5>
-                <p class="text-muted">Advanced machine learning algorithms trained on thousands of scam examples.</p>
+                <p class="text-muted">Machine learning algorithms trained on thousands of scam examples.</p>
             </div>
             <div class="col-md-4 text-center mb-4">
                 <div class="feature-icon mb-3">

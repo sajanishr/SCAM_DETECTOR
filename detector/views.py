@@ -109,14 +109,32 @@ def results_analysis(request):
     # Calculate summary statistics
     total_detections = detections.count()
     total_scams = detections.filter(is_scam=True).count()
+    total_legitimate = detections.filter(is_scam=False).count()
     scam_percentage = (total_scams / total_detections * 100) if total_detections > 0 else 0
+
+    # Calculate average confidence for scam and legitimate
+    scam_confidences = []
+    legitimate_confidences = []
+    for d in detections:
+        # Use the stored prediction output if available, otherwise recompute
+        result = get_scam_detector().predict(d.text)
+        if d.is_scam:
+            scam_confidences.append(result['probability_spam'])
+        else:
+            legitimate_confidences.append(result['probability_ham'])
+    avg_scam_conf = round(sum(scam_confidences)/len(scam_confidences), 3) if scam_confidences else None
+    avg_legit_conf = round(sum(legitimate_confidences)/len(legitimate_confidences), 3) if legitimate_confidences else None
+
     context = {
         'page_obj': page_obj,
         'total_detections': total_detections,
         'total_scams': total_scams,
+        'total_legitimate': total_legitimate,
         'scam_percentage': scam_percentage,
         'days': days,
-        'date_range': f"Last {days} days"
+        'date_range': f"Last {days} days",
+        'avg_scam_conf': avg_scam_conf,
+        'avg_legit_conf': avg_legit_conf,
     }
     return render(request, 'detector/results_analysis.html', context)
 
@@ -171,32 +189,40 @@ def report_scam(request):
 def model_performance(request):
     """Model performance and classification report page"""
     detector = get_scam_detector()
-    
-    # Get model performance metrics
-    try:
-        # Train the model to get current performance (this will generate classification report)
+    # Only retrain if not already trained
+    if not detector.is_trained:
         accuracy = detector.train()
-        
-        # If classification report is still not available, force generate it
-        if not detector.get_classification_report():
-            detector._generate_classification_report()
-        
-        # Get dataset statistics
-        texts, labels = detector.load_and_prepare_data()
-        total_samples = len(texts)
-        legitimate_count = sum(1 for label in labels if label == 0)
-        spam_count = sum(1 for label in labels if label == 1)
-        
-        # Calculate additional metrics
-        legitimate_percentage = (legitimate_count / total_samples) * 100
-        spam_percentage = (spam_count / total_samples) * 100
-        
-        # Get feature information
-        feature_count = detector.vectorizer.get_feature_names_out().shape[0] if hasattr(detector.vectorizer, 'get_feature_names_out') else 5000
-        
-        # Get classification report
-        classification_report_str = detector.get_classification_report()
-        
+    else:
+        accuracy = getattr(detector, '_last_accuracy', 0.0)
+        # Ensure classification report is available
+        if detector.get_classification_report() is None:
+            # Regenerate classification report
+            texts, labels = detector.load_and_prepare_data()
+            from sklearn.model_selection import train_test_split
+            X_train, X_test, y_train, y_test = train_test_split(texts, labels, test_size=0.2, random_state=42)
+            y_pred = detector.model.predict(X_test)
+            from sklearn.metrics import classification_report, recall_score
+            detector.classification_report_str = classification_report(y_test, y_pred, target_names=['ham', 'spam'])
+    print('DEBUG: detector._last_accuracy =', getattr(detector, '_last_accuracy', 'MISSING'))
+    print('DEBUG: accuracy used for display =', accuracy)
+    try:
+        from sklearn.metrics import classification_report
+        y_pred = None
+        try:
+            texts, labels = detector.load_and_prepare_data()
+            total_samples = len(texts)
+            legitimate_count = sum(1 for label in labels if label == 'ham')
+            spam_count = sum(1 for label in labels if label == 'spam')
+            legitimate_percentage = (legitimate_count / total_samples) * 100 if total_samples else 0
+            spam_percentage = (spam_count / total_samples) * 100 if total_samples else 0
+            classification_report_str = detector.get_classification_report()
+        except Exception as e:
+            total_samples = 0
+            legitimate_count = 0
+            spam_count = 0
+            legitimate_percentage = 0
+            spam_percentage = 0
+            classification_report_str = None
         performance_data = {
             'accuracy': accuracy * 100,
             'accuracy_value': round(accuracy * 100, 1),
@@ -206,13 +232,12 @@ def model_performance(request):
             'spam_count': spam_count,
             'legitimate_percentage': legitimate_percentage,
             'spam_percentage': spam_percentage,
-            'feature_count': feature_count,
+            'feature_count': len(detector.model.vocab),
             'model_type': 'Multinomial Naive Bayes',
             'vectorizer_type': 'TF-IDF',
             'is_trained': detector.is_trained,
             'classification_report': classification_report_str
         }
-        
     except Exception as e:
         performance_data = {
             'error': str(e),
@@ -224,16 +249,16 @@ def model_performance(request):
             'spam_count': 0,
             'legitimate_percentage': 0,
             'spam_percentage': 0,
-            'feature_count': 0,
-            'model_type': 'Multinomial Naive Bayes',
-            'vectorizer_type': 'TF-IDF',
+            'feature_count': 'N/A',
+            'model_type': 'Naive Bayes (from scratch)',
+            'vectorizer_type': 'Custom (in-code)',
             'is_trained': False,
             'classification_report': None
         }
-    
     context = {
         'performance': performance_data,
     }
+    print('DEBUG: Model Performance Data:', performance_data)  # Debug print
     return render(request, 'detector/model_performance.html', context)
 
 
